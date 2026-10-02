@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#071229" />
+  <title>fromOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=12" />
+</head>
+<body>
+  <div class="cosmos" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="masthead">
+      <div class="header-actions">
+        <button id="musicBtn" class="icon-btn" type="button" aria-pressed="false" aria-label="開啟背景音樂" title="開啟背景音樂">
+          <span class="speaker-wrap" aria-hidden="true">
+            <svg id="speakerIcon" class="speaker-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9.5v5h4l5 4V5.5l-5 4H4Z"/>
+              <path d="M16 9a4 4 0 0 1 0 6" fill="none"/>
+              <path id="speakerWave" d="M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none"/>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <section class="card-stage" aria-label="創作提示卡">
+      <div id="card" class="card" tabindex="0" role="button" aria-label="點擊牌面翻牌查看訊息" aria-pressed="false">
+        <div class="card-inner">
+          <article class="card-face card-front" aria-hidden="false">
+            <div class="front-mark" aria-hidden="true">
+              <img class="infinity-mark" src="infinity-symbol.png?v=8" alt="" />
+            </div>
+          </article>
+
+          <article class="card-face card-back" aria-live="polite">
+            <p id="prompt" class="prompt"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p><span lang="en">Inspired by <strong>Oblique Strategies</strong> by Brian Eno and Peter Schmidt. This is an independent, unofficial project with original prompts.</span><br><span>本站為非官方獨立創作，卡片內容為重新創作，非原版翻譯。</span></p>
+    </footer>
+  </main>
+
+  <script src="app.js?v=12"></script>
+</body>
+</html>
