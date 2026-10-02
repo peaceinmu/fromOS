@@ -73,27 +73,66 @@ const cardEl = document.getElementById("card");
 const musicBtn = document.getElementById("musicBtn");
 const speakerWave = document.getElementById("speakerWave");
 
-let lastIndex = -1;
 let revealed = false;
 
+// ===== 抽牌狀態 =====
+let lastIndex = -1;
+let drawPile = [];
+
+// ===== 音樂狀態 =====
 let audioCtx = null;
 let masterGain = null;
 let musicOn = false;
 
-// 只有喇叭按鈕能改變使用者的靜音選擇。
+// 只有喇叭按鈕能改變使用者的靜音選擇
 let userMuted = false;
 let chimeTimer = null;
 let padNodes = [];
 
+/**
+ * Fisher-Yates 洗牌
+ */
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+/**
+ * 重新建立一疊完整的牌並洗牌
+ * 並盡量避免新一輪第一張和上一輪最後一張相同
+ */
+function refillDrawPile() {
+  drawPile = strategies.map((_, index) => index);
+  shuffleArray(drawPile);
+
+  if (
+    drawPile.length > 1 &&
+    lastIndex !== -1 &&
+    drawPile[drawPile.length - 1] === lastIndex
+  ) {
+    const swapIndex = Math.floor(Math.random() * (drawPile.length - 1));
+    [drawPile[drawPile.length - 1], drawPile[swapIndex]] = [
+      drawPile[swapIndex],
+      drawPile[drawPile.length - 1]
+    ];
+  }
+}
+
+/**
+ * 抽下一張牌
+ * 規則：
+ * - 66 張一輪內不重複
+ * - 全部抽完才重新洗牌
+ */
 function pickNext() {
-  if (strategies.length < 2) return 0;
+  if (drawPile.length === 0) {
+    refillDrawPile();
+  }
 
-  let next;
-
-  do {
-    next = Math.floor(Math.random() * strategies.length);
-  } while (next === lastIndex);
-
+  const next = drawPile.pop();
   lastIndex = next;
   return next;
 }
@@ -189,7 +228,7 @@ function ensureAudio() {
 
   masterGain = audioCtx.createGain();
 
-  // 在確定可以播放前保持完全無聲。
+  // 在確定可以播放前保持完全無聲
   masterGain.gain.value = 0;
   masterGain.connect(audioCtx.destination);
 
@@ -289,7 +328,6 @@ function playChime() {
 }
 
 function activateMusic() {
-  // 音訊啟動可能較晚完成，因此再次確認使用者沒有按靜音。
   if (
     userMuted ||
     !audioCtx ||
@@ -323,7 +361,7 @@ function activateMusic() {
 }
 
 async function startMusic() {
-  // 翻牌和自動播放都不能取消使用者的靜音設定。
+  // 翻牌和自動播放都不能取消使用者的靜音設定
   if (userMuted) return false;
 
   try {
@@ -333,12 +371,12 @@ async function startMusic() {
       await audioCtx.resume();
     }
 
-    // 等待 resume 期間，使用者可能已按下靜音。
+    // 等待 resume 期間，使用者可能已按下靜音
     if (userMuted) return false;
 
     return activateMusic();
   } catch (error) {
-    // 被瀏覽器阻擋時，保留設定，等待下一次使用者操作。
+    // 被瀏覽器阻擋時，保留設定，等待下一次使用者操作
     return false;
   }
 }
@@ -362,7 +400,7 @@ musicBtn.addEventListener("click", (event) => {
   event.stopPropagation();
 
   if (userMuted) {
-    // 只有使用者再次點喇叭才取消靜音。
+    // 只有使用者再次點喇叭才取消靜音
     userMuted = false;
     updateSpeakerIcon();
     void startMusic();
@@ -371,7 +409,10 @@ musicBtn.addEventListener("click", (event) => {
   }
 });
 
-// 進站先嘗試自動播放。
-// 若被瀏覽器阻擋，第一次點牌時會再次嘗試。
+// 初始化抽牌堆
+refillDrawPile();
+
+// 進站先嘗試自動播放
+// 若被瀏覽器阻擋，第一次點牌時會再次嘗試
 updateSpeakerIcon();
 void startMusic();
