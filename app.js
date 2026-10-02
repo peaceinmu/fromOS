@@ -75,19 +75,14 @@ const speakerWave = document.getElementById("speakerWave");
 
 let revealed = false;
 
-// ===== 抽牌狀態 =====
+
+// =====================================================
+// 抽牌
+// =====================================================
+
 let lastIndex = -1;
 let drawPile = [];
 
-// ===== 音樂狀態 =====
-let audioCtx = null;
-let masterGain = null;
-let musicOn = false;
-
-// 只有喇叭按鈕能改變使用者的靜音選擇
-let userMuted = false;
-let chimeTimer = null;
-let padNodes = [];
 
 /**
  * Fisher-Yates 洗牌
@@ -95,72 +90,119 @@ let padNodes = [];
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+
+    [array[i], array[j]] = [
+      array[j],
+      array[i]
+    ];
   }
+
   return array;
 }
 
+
 /**
- * 重新建立一疊完整的牌並洗牌
- * 並盡量避免新一輪第一張和上一輪最後一張相同
+ * 重新建立完整的 66 張牌並洗牌
  */
 function refillDrawPile() {
-  drawPile = strategies.map((_, index) => index);
+
+  drawPile = strategies.map(
+    (_, index) => index
+  );
+
   shuffleArray(drawPile);
 
+
+  // 避免上一輪最後一張
+  // 與新一輪第一張相同
   if (
     drawPile.length > 1 &&
     lastIndex !== -1 &&
     drawPile[drawPile.length - 1] === lastIndex
   ) {
-    const swapIndex = Math.floor(Math.random() * (drawPile.length - 1));
-    [drawPile[drawPile.length - 1], drawPile[swapIndex]] = [
+
+    const swapIndex =
+      Math.floor(
+        Math.random() *
+        (drawPile.length - 1)
+      );
+
+    [
+      drawPile[drawPile.length - 1],
+      drawPile[swapIndex]
+    ] = [
       drawPile[swapIndex],
       drawPile[drawPile.length - 1]
     ];
   }
 }
 
+
 /**
- * 抽下一張牌
- * 規則：
- * - 66 張一輪內不重複
- * - 全部抽完才重新洗牌
+ * 抽下一張
+ *
+ * 一輪 66 張之內不重複。
+ * 全部抽完後才重新洗牌。
  */
 function pickNext() {
+
   if (drawPile.length === 0) {
     refillDrawPile();
   }
 
   const next = drawPile.pop();
+
   lastIndex = next;
+
   return next;
 }
 
+
+// =====================================================
+// 翻牌
+// =====================================================
+
 function revealCard() {
-  promptEl.textContent = strategies[pickNext()];
+
+  promptEl.textContent =
+    strategies[pickNext()];
+
   revealed = true;
 
   cardEl.classList.add("is-flipped");
-  cardEl.setAttribute("aria-pressed", "true");
+
+  cardEl.setAttribute(
+    "aria-pressed",
+    "true"
+  );
+
   cardEl.setAttribute(
     "aria-label",
     "訊息已顯示。再點一下回到牌面"
   );
 }
 
+
 function hideCard() {
+
   revealed = false;
 
   cardEl.classList.remove("is-flipped");
-  cardEl.setAttribute("aria-pressed", "false");
+
+  cardEl.setAttribute(
+    "aria-pressed",
+    "false"
+  );
+
   cardEl.setAttribute(
     "aria-label",
     "點擊牌面隨機抽取另一則訊息"
   );
 }
 
+
 function toggleCard() {
+
   if (revealed) {
     hideCard();
   } else {
@@ -168,116 +210,241 @@ function toggleCard() {
   }
 }
 
-function handleCardInteraction() {
-  // 自動播放被阻擋時，在點牌操作內再次嘗試。
-  // 不等待音訊啟動，避免瀏覽器阻擋音訊時連翻牌都卡住。
-  if (!userMuted) {
-    void startMusic();
-  }
 
-  toggleCard();
-}
+// 翻牌只控制牌。
+// 完全不控制音樂。
+cardEl.addEventListener(
+  "click",
+  toggleCard
+);
 
-cardEl.addEventListener("click", handleCardInteraction);
 
-cardEl.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
+cardEl.addEventListener(
+  "keydown",
+  (event) => {
 
-    if (!event.repeat) {
-      handleCardInteraction();
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+
+      event.preventDefault();
+
+      if (!event.repeat) {
+        toggleCard();
+      }
     }
   }
-});
+);
+
+
+// =====================================================
+// 背景音樂
+// =====================================================
+
+let audioCtx = null;
+let masterGain = null;
+
+let musicOn = false;
+
+// 網站一開始固定為靜音。
+let userMuted = true;
+
+let chimeTimer = null;
+let padNodes = [];
+
+
+// =====================================================
+// 喇叭圖示
+// =====================================================
 
 function updateSpeakerIcon() {
+
+  // 靜音時拿掉聲波。
   if (speakerWave) {
-    speakerWave.style.display = userMuted ? "none" : "";
+    speakerWave.style.display =
+      userMuted ? "none" : "";
   }
 
-  musicBtn.classList.toggle("is-muted", userMuted);
+
+  // CSS 的 .is-muted
+  // 會顯示喇叭斜線。
+  musicBtn.classList.toggle(
+    "is-muted",
+    userMuted
+  );
+
+
   musicBtn.setAttribute(
     "aria-pressed",
     userMuted ? "false" : "true"
   );
 
-  const label = userMuted
-    ? "開啟背景音樂"
-    : "關閉背景音樂";
 
-  musicBtn.setAttribute("aria-label", label);
+  const label =
+    userMuted
+      ? "開啟背景音樂"
+      : "關閉背景音樂";
+
+
+  musicBtn.setAttribute(
+    "aria-label",
+    label
+  );
+
   musicBtn.title = label;
 }
 
+
+// =====================================================
+// 計時器
+// =====================================================
+
 function clearChimeTimer() {
+
   if (chimeTimer !== null) {
-    window.clearTimeout(chimeTimer);
+
+    window.clearTimeout(
+      chimeTimer
+    );
+
     chimeTimer = null;
   }
 }
 
+
+// =====================================================
+// 建立音訊
+// =====================================================
+
 function ensureAudio() {
-  if (audioCtx) return true;
+
+  if (audioCtx) {
+    return true;
+  }
+
 
   const AudioContextClass =
-    window.AudioContext || window.webkitAudioContext;
+    window.AudioContext ||
+    window.webkitAudioContext;
 
-  if (!AudioContextClass) return false;
 
-  audioCtx = new AudioContextClass();
+  if (!AudioContextClass) {
+    return false;
+  }
 
-  masterGain = audioCtx.createGain();
 
-  // 在確定可以播放前保持完全無聲
+  audioCtx =
+    new AudioContextClass();
+
+
+  masterGain =
+    audioCtx.createGain();
+
+
+  // 建立時先完全靜音。
   masterGain.gain.value = 0;
-  masterGain.connect(audioCtx.destination);
 
-  const frequencies = [130.81, 164.81, 196.0];
+  masterGain.connect(
+    audioCtx.destination
+  );
 
-  frequencies.forEach((frequency, index) => {
-    const oscillator = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    const lfo = audioCtx.createOscillator();
-    const lfoGain = audioCtx.createGain();
 
-    oscillator.type = index === 1 ? "sine" : "triangle";
-    oscillator.frequency.value = frequency;
+  const frequencies = [
+    130.81,
+    164.81,
+    196.0
+  ];
 
-    gain.gain.value = index === 0 ? 0.030 : 0.016;
 
-    lfo.type = "sine";
-    lfo.frequency.value = 0.035 + index * 0.011;
-    lfoGain.gain.value = 0.006;
+  frequencies.forEach(
+    (frequency, index) => {
 
-    lfo.connect(lfoGain);
-    lfoGain.connect(gain.gain);
+      const oscillator =
+        audioCtx.createOscillator();
 
-    oscillator.connect(gain);
-    gain.connect(masterGain);
+      const gain =
+        audioCtx.createGain();
 
-    oscillator.start();
-    lfo.start();
+      const lfo =
+        audioCtx.createOscillator();
 
-    padNodes.push(oscillator, gain, lfo, lfoGain);
-  });
+      const lfoGain =
+        audioCtx.createGain();
 
-  audioCtx.addEventListener("statechange", () => {
-    if (audioCtx.state !== "running") {
-      musicOn = false;
-      clearChimeTimer();
-      return;
+
+      oscillator.type =
+        index === 1
+          ? "sine"
+          : "triangle";
+
+
+      oscillator.frequency.value =
+        frequency;
+
+
+      gain.gain.value =
+        index === 0
+          ? 0.030
+          : 0.016;
+
+
+      lfo.type = "sine";
+
+      lfo.frequency.value =
+        0.035 +
+        index * 0.011;
+
+
+      lfoGain.gain.value =
+        0.006;
+
+
+      lfo.connect(
+        lfoGain
+      );
+
+      lfoGain.connect(
+        gain.gain
+      );
+
+
+      oscillator.connect(
+        gain
+      );
+
+      gain.connect(
+        masterGain
+      );
+
+
+      oscillator.start();
+
+      lfo.start();
+
+
+      padNodes.push(
+        oscillator,
+        gain,
+        lfo,
+        lfoGain
+      );
     }
+  );
 
-    if (!userMuted) {
-      activateMusic();
-    }
-  });
 
   return true;
 }
 
+
+// =====================================================
+// 空靈音效
+// =====================================================
+
 function playChime() {
+
   chimeTimer = null;
+
 
   if (
     !audioCtx ||
@@ -288,131 +455,277 @@ function playChime() {
     return;
   }
 
-  const now = audioCtx.currentTime;
-  const notes = [523.25, 587.33, 659.25, 783.99, 880.0];
-  const frequency = notes[
-    Math.floor(Math.random() * notes.length)
+
+  const now =
+    audioCtx.currentTime;
+
+
+  const notes = [
+    523.25,
+    587.33,
+    659.25,
+    783.99,
+    880.0
   ];
 
-  const oscillator = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  const filter = audioCtx.createBiquadFilter();
+
+  const frequency =
+    notes[
+      Math.floor(
+        Math.random() *
+        notes.length
+      )
+    ];
+
+
+  const oscillator =
+    audioCtx.createOscillator();
+
+  const gain =
+    audioCtx.createGain();
+
+  const filter =
+    audioCtx.createBiquadFilter();
+
 
   oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(frequency, now);
+
+
+  oscillator.frequency.setValueAtTime(
+    frequency,
+    now
+  );
+
 
   filter.type = "lowpass";
-  filter.frequency.value = 1800;
 
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.018, now + 0.05);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.8);
+  filter.frequency.value =
+    1800;
 
-  oscillator.connect(filter);
-  filter.connect(gain);
-  gain.connect(masterGain);
+
+  gain.gain.setValueAtTime(
+    0.0001,
+    now
+  );
+
+
+  gain.gain.exponentialRampToValueAtTime(
+    0.018,
+    now + 0.05
+  );
+
+
+  gain.gain.exponentialRampToValueAtTime(
+    0.0001,
+    now + 4.8
+  );
+
+
+  oscillator.connect(
+    filter
+  );
+
+  filter.connect(
+    gain
+  );
+
+  gain.connect(
+    masterGain
+  );
+
 
   oscillator.onended = () => {
+
     oscillator.disconnect();
+
     filter.disconnect();
+
     gain.disconnect();
   };
 
-  oscillator.start(now);
-  oscillator.stop(now + 5);
 
-  chimeTimer = window.setTimeout(
-    playChime,
-    5500 + Math.random() * 4500
+  oscillator.start(
+    now
   );
+
+
+  oscillator.stop(
+    now + 5
+  );
+
+
+  chimeTimer =
+    window.setTimeout(
+      playChime,
+      5500 +
+        Math.random() *
+        4500
+    );
 }
 
-function activateMusic() {
-  if (
-    userMuted ||
-    !audioCtx ||
-    !masterGain ||
-    audioCtx.state !== "running"
-  ) {
+
+// =====================================================
+// 開啟音樂
+// =====================================================
+
+async function startMusic() {
+
+  // 只有喇叭按鈕取消靜音後
+  // 才允許真正播放。
+  if (userMuted) {
     return false;
   }
 
-  if (!musicOn) {
+
+  try {
+
+    if (!ensureAudio()) {
+      return false;
+    }
+
+
+    if (
+      audioCtx.state !== "running"
+    ) {
+      await audioCtx.resume();
+    }
+
+
+    // 等待 resume 期間
+    // 使用者可能再次按了靜音。
+    if (userMuted) {
+      return false;
+    }
+
+
     musicOn = true;
 
-    const now = audioCtx.currentTime;
 
-    masterGain.gain.cancelScheduledValues(now);
-    masterGain.gain.setValueAtTime(
-      Math.max(masterGain.gain.value, 0.0001),
+    const now =
+      audioCtx.currentTime;
+
+
+    masterGain.gain.cancelScheduledValues(
       now
     );
+
+
+    masterGain.gain.setValueAtTime(
+      Math.max(
+        masterGain.gain.value,
+        0.0001
+      ),
+      now
+    );
+
+
     masterGain.gain.exponentialRampToValueAtTime(
       0.72,
       now + 2.5
     );
-  }
 
-  if (chimeTimer === null) {
-    chimeTimer = window.setTimeout(playChime, 1700);
-  }
 
-  return true;
-}
+    if (chimeTimer === null) {
 
-async function startMusic() {
-  // 翻牌和自動播放都不能取消使用者的靜音設定
-  if (userMuted) return false;
-
-  try {
-    if (!ensureAudio()) return false;
-
-    if (audioCtx.state !== "running") {
-      await audioCtx.resume();
+      chimeTimer =
+        window.setTimeout(
+          playChime,
+          1700
+        );
     }
 
-    // 等待 resume 期間，使用者可能已按下靜音
-    if (userMuted) return false;
 
-    return activateMusic();
+    return true;
+
   } catch (error) {
-    // 被瀏覽器阻擋時，保留設定，等待下一次使用者操作
+
     return false;
   }
 }
 
+
+// =====================================================
+// 靜音
+// =====================================================
+
 function stopMusic() {
+
   userMuted = true;
+
   musicOn = false;
 
+
   clearChimeTimer();
+
   updateSpeakerIcon();
 
-  if (!audioCtx || !masterGain) return;
 
-  const now = audioCtx.currentTime;
+  if (
+    !audioCtx ||
+    !masterGain
+  ) {
+    return;
+  }
 
-  masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setValueAtTime(0, now);
+
+  const now =
+    audioCtx.currentTime;
+
+
+  masterGain.gain.cancelScheduledValues(
+    now
+  );
+
+
+  // 立即靜音。
+  masterGain.gain.setValueAtTime(
+    0,
+    now
+  );
 }
 
-musicBtn.addEventListener("click", (event) => {
-  event.stopPropagation();
 
-  if (userMuted) {
-    // 只有使用者再次點喇叭才取消靜音
-    userMuted = false;
-    updateSpeakerIcon();
-    void startMusic();
-  } else {
-    stopMusic();
+// =====================================================
+// 喇叭按鈕
+// =====================================================
+
+musicBtn.addEventListener(
+  "click",
+  async (event) => {
+
+    event.stopPropagation();
+
+
+    if (userMuted) {
+
+      // 使用者主動開啟聲音。
+      userMuted = false;
+
+      updateSpeakerIcon();
+
+      await startMusic();
+
+    } else {
+
+      // 使用者主動靜音。
+      stopMusic();
+    }
   }
-});
+);
 
-// 初始化抽牌堆
+
+// =====================================================
+// 初始化
+// =====================================================
+
+// 建立第一輪 66 張牌。
 refillDrawPile();
 
-// 進站先嘗試自動播放
-// 若被瀏覽器阻擋，第一次點牌時會再次嘗試
+
+// 一進網站固定靜音。
+// 不建立 AudioContext，
+// 不嘗試自動播放。
+userMuted = true;
+musicOn = false;
+
 updateSpeakerIcon();
-void startMusic();
