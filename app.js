@@ -1,5 +1,4 @@
-// 以下 66 則為重新創作的繁體中文提示，不是 Oblique Strategies 原版卡片的完整翻譯。
-// 每一則都刻意寫成可通用於繪畫、文學、設計、攝影、音樂、影像、工藝與其他創作形式。
+// 66 則重新創作的繁體中文提示，非原版卡片翻譯。
 const strategies = [
   "把注意力移到你一直忽略的地方。",
   "先拿走一個你最捨不得拿走的元素。",
@@ -74,193 +73,305 @@ const cardEl = document.getElementById("card");
 const musicBtn = document.getElementById("musicBtn");
 const speakerWave = document.getElementById("speakerWave");
 
-let currentIndex = -1;
 let lastIndex = -1;
 let revealed = false;
+
 let audioCtx = null;
 let masterGain = null;
 let musicOn = false;
+
+// 只有喇叭按鈕能改變使用者的靜音選擇。
 let userMuted = false;
-let wantsMusic = true;
 let chimeTimer = null;
 let padNodes = [];
 
 function pickNext() {
   if (strategies.length < 2) return 0;
+
   let next;
+
   do {
     next = Math.floor(Math.random() * strategies.length);
   } while (next === lastIndex);
+
   lastIndex = next;
   return next;
 }
 
 function revealCard() {
-  currentIndex = pickNext();
-  promptEl.textContent = strategies[currentIndex];
+  promptEl.textContent = strategies[pickNext()];
   revealed = true;
+
   cardEl.classList.add("is-flipped");
   cardEl.setAttribute("aria-pressed", "true");
-  cardEl.setAttribute("aria-label", "訊息已顯示。再點一下回到牌面");
+  cardEl.setAttribute(
+    "aria-label",
+    "訊息已顯示。再點一下回到牌面"
+  );
 }
 
 function hideCard() {
   revealed = false;
+
   cardEl.classList.remove("is-flipped");
   cardEl.setAttribute("aria-pressed", "false");
-  cardEl.setAttribute("aria-label", "點擊牌面隨機抽取另一則訊息");
+  cardEl.setAttribute(
+    "aria-label",
+    "點擊牌面隨機抽取另一則訊息"
+  );
 }
 
 function toggleCard() {
-  if (revealed) hideCard();
-  else revealCard();
+  if (revealed) {
+    hideCard();
+  } else {
+    revealCard();
+  }
 }
 
-cardEl.addEventListener("click", toggleCard);
-cardEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    toggleCard();
+function handleCardInteraction() {
+  // 自動播放被阻擋時，在點牌操作內再次嘗試。
+  // 不等待音訊啟動，避免瀏覽器阻擋音訊時連翻牌都卡住。
+  if (!userMuted) {
+    void startMusic();
+  }
+
+  toggleCard();
+}
+
+cardEl.addEventListener("click", handleCardInteraction);
+
+cardEl.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+
+    if (!event.repeat) {
+      handleCardInteraction();
+    }
   }
 });
 
-function ensureAudio() {
-  if (audioCtx) return;
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
+function updateSpeakerIcon() {
+  if (speakerWave) {
+    speakerWave.style.display = userMuted ? "none" : "";
+  }
 
-  audioCtx = new AC();
+  musicBtn.classList.toggle("is-muted", userMuted);
+  musicBtn.setAttribute(
+    "aria-pressed",
+    userMuted ? "false" : "true"
+  );
+
+  const label = userMuted
+    ? "開啟背景音樂"
+    : "關閉背景音樂";
+
+  musicBtn.setAttribute("aria-label", label);
+  musicBtn.title = label;
+}
+
+function clearChimeTimer() {
+  if (chimeTimer !== null) {
+    window.clearTimeout(chimeTimer);
+    chimeTimer = null;
+  }
+}
+
+function ensureAudio() {
+  if (audioCtx) return true;
+
+  const AudioContextClass =
+    window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContextClass) return false;
+
+  audioCtx = new AudioContextClass();
+
   masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.0001;
+
+  // 在確定可以播放前保持完全無聲。
+  masterGain.gain.value = 0;
   masterGain.connect(audioCtx.destination);
 
-  const freqs = [130.81, 164.81, 196.0];
-  freqs.forEach((freq, i) => {
-    const osc = audioCtx.createOscillator();
+  const frequencies = [130.81, 164.81, 196.0];
+
+  frequencies.forEach((frequency, index) => {
+    const oscillator = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const lfo = audioCtx.createOscillator();
     const lfoGain = audioCtx.createGain();
 
-    osc.type = i === 1 ? "sine" : "triangle";
-    osc.frequency.value = freq;
-    gain.gain.value = i === 0 ? 0.030 : 0.016;
+    oscillator.type = index === 1 ? "sine" : "triangle";
+    oscillator.frequency.value = frequency;
+
+    gain.gain.value = index === 0 ? 0.030 : 0.016;
+
     lfo.type = "sine";
-    lfo.frequency.value = 0.035 + i * 0.011;
+    lfo.frequency.value = 0.035 + index * 0.011;
     lfoGain.gain.value = 0.006;
 
     lfo.connect(lfoGain);
     lfoGain.connect(gain.gain);
-    osc.connect(gain);
+
+    oscillator.connect(gain);
     gain.connect(masterGain);
-    osc.start();
+
+    oscillator.start();
     lfo.start();
-    padNodes.push(osc, gain, lfo, lfoGain);
+
+    padNodes.push(oscillator, gain, lfo, lfoGain);
   });
+
+  audioCtx.addEventListener("statechange", () => {
+    if (audioCtx.state !== "running") {
+      musicOn = false;
+      clearChimeTimer();
+      return;
+    }
+
+    if (!userMuted) {
+      activateMusic();
+    }
+  });
+
+  return true;
 }
 
 function playChime() {
-  if (!audioCtx || !musicOn) return;
+  chimeTimer = null;
+
+  if (
+    !audioCtx ||
+    audioCtx.state !== "running" ||
+    !musicOn ||
+    userMuted
+  ) {
+    return;
+  }
 
   const now = audioCtx.currentTime;
   const notes = [523.25, 587.33, 659.25, 783.99, 880.0];
-  const freq = notes[Math.floor(Math.random() * notes.length)];
-  const osc = audioCtx.createOscillator();
+  const frequency = notes[
+    Math.floor(Math.random() * notes.length)
+  ];
+
+  const oscillator = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   const filter = audioCtx.createBiquadFilter();
 
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(freq, now);
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, now);
+
   filter.type = "lowpass";
   filter.frequency.value = 1800;
 
   gain.gain.setValueAtTime(0.0001, now);
   gain.gain.exponentialRampToValueAtTime(0.018, now + 0.05);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.8);
-  osc.connect(filter);
+
+  oscillator.connect(filter);
   filter.connect(gain);
   gain.connect(masterGain);
-  osc.start(now);
-  osc.stop(now + 5);
 
-  const nextDelay = 5500 + Math.random() * 4500;
-  chimeTimer = window.setTimeout(playChime, nextDelay);
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    filter.disconnect();
+    gain.disconnect();
+  };
+
+  oscillator.start(now);
+  oscillator.stop(now + 5);
+
+  chimeTimer = window.setTimeout(
+    playChime,
+    5500 + Math.random() * 4500
+  );
 }
 
-function updateSpeakerIcon() {
-  const muted = userMuted || !wantsMusic;
-  speakerWave.style.display = muted ? "none" : "";
-  musicBtn.classList.toggle("is-muted", muted);
-  musicBtn.setAttribute("aria-pressed", muted ? "false" : "true");
-  musicBtn.setAttribute("aria-label", muted ? "開啟背景音樂" : "關閉背景音樂");
-  musicBtn.title = muted ? "開啟背景音樂" : "關閉背景音樂";
-}
-
-async function startMusic() {
-  userMuted = false;
-  wantsMusic = true;
-  ensureAudio();
-  if (!audioCtx || !masterGain) return false;
-  try {
-    if (audioCtx.state === "suspended") await audioCtx.resume();
-  } catch (err) {
-    musicOn = false;
-    updateSpeakerIcon();
+function activateMusic() {
+  // 音訊啟動可能較晚完成，因此再次確認使用者沒有按靜音。
+  if (
+    userMuted ||
+    !audioCtx ||
+    !masterGain ||
+    audioCtx.state !== "running"
+  ) {
     return false;
   }
 
-  musicOn = audioCtx.state === "running";
-  updateSpeakerIcon();
+  if (!musicOn) {
+    musicOn = true;
 
-  const now = audioCtx.currentTime;
-  masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setValueAtTime(Math.max(masterGain.gain.value, 0.0001), now);
-  masterGain.gain.exponentialRampToValueAtTime(0.72, now + 2.5);
-  if (!chimeTimer) chimeTimer = window.setTimeout(playChime, 1700);
-  return musicOn;
+    const now = audioCtx.currentTime;
+
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(
+      Math.max(masterGain.gain.value, 0.0001),
+      now
+    );
+    masterGain.gain.exponentialRampToValueAtTime(
+      0.72,
+      now + 2.5
+    );
+  }
+
+  if (chimeTimer === null) {
+    chimeTimer = window.setTimeout(playChime, 1700);
+  }
+
+  return true;
+}
+
+async function startMusic() {
+  // 翻牌和自動播放都不能取消使用者的靜音設定。
+  if (userMuted) return false;
+
+  try {
+    if (!ensureAudio()) return false;
+
+    if (audioCtx.state !== "running") {
+      await audioCtx.resume();
+    }
+
+    // 等待 resume 期間，使用者可能已按下靜音。
+    if (userMuted) return false;
+
+    return activateMusic();
+  } catch (error) {
+    // 被瀏覽器阻擋時，保留設定，等待下一次使用者操作。
+    return false;
+  }
 }
 
 function stopMusic() {
   userMuted = true;
-  wantsMusic = false;
   musicOn = false;
+
+  clearChimeTimer();
   updateSpeakerIcon();
 
   if (!audioCtx || !masterGain) return;
-  const now = audioCtx.currentTime;
-  masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setValueAtTime(Math.max(masterGain.gain.value, 0.0001), now);
-  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
 
-  if (chimeTimer) {
-    clearTimeout(chimeTimer);
-    chimeTimer = null;
-  }
+  const now = audioCtx.currentTime;
+
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(0, now);
 }
 
-musicBtn.addEventListener("click", async (event) => {
+musicBtn.addEventListener("click", (event) => {
   event.stopPropagation();
-  if (!userMuted && wantsMusic) {
-    stopMusic();
+
+  if (userMuted) {
+    // 只有使用者再次點喇叭才取消靜音。
+    userMuted = false;
+    updateSpeakerIcon();
+    void startMusic();
   } else {
-    await startMusic();
+    stopMusic();
   }
 });
 
-// 進站時先嘗試自動播放。部分瀏覽器會阻擋「有聲自動播放」；
-// 若被阻擋，第一次一般互動會再嘗試啟動，但只限使用者尚未主動靜音的情況。
-async function tryAutoplay() {
-  if (userMuted || !wantsMusic) return;
-  await startMusic();
-}
-
-function unlockOnFirstInteraction() {
-  if (!userMuted && wantsMusic && !musicOn) {
-    startMusic();
-  }
-}
-
-window.addEventListener("pointerdown", unlockOnFirstInteraction, { passive: true, once: true });
-window.addEventListener("keydown", unlockOnFirstInteraction, { once: true });
-
+// 進站先嘗試自動播放。
+// 若被瀏覽器阻擋，第一次點牌時會再次嘗試。
 updateSpeakerIcon();
-tryAutoplay();
+void startMusic();
