@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#071229" />
+  <title>fromOS</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="cosmos" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="masthead">
+      <div class="header-actions">
+        <button id="musicBtn" class="text-btn" type="button" aria-pressed="false">音樂：關</button>
+        <button id="aboutBtn" class="text-btn" type="button" aria-expanded="false">關於</button>
+      </div>
+    </header>
+
+    <section class="card-stage" aria-label="創作提示卡">
+      <div id="card" class="card" tabindex="0" role="button" aria-label="點擊牌面翻牌查看訊息" aria-pressed="false">
+        <div class="card-inner">
+          <article class="card-face card-front" aria-hidden="false">
+            <div class="mandala-wrap" aria-hidden="true">
+              <svg class="mandala" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="200" cy="200" r="143" stroke="#7e8597" stroke-width="1.5" opacity=".65"/>
+                  <circle cx="200" cy="200" r="118" stroke="#a68ea0" stroke-width="1.5" opacity=".65"/>
+                  <circle cx="200" cy="200" r="72" stroke="#718b88" stroke-width="1.5" opacity=".7"/>
+                  <g stroke="#927f9f" stroke-width="2" opacity=".78">
+                    <path d="M200 60 L234 132 L312 88 L268 166 L340 200 L268 234 L312 312 L234 268 L200 340 L166 268 L88 312 L132 234 L60 200 L132 166 L88 88 L166 132 Z"/>
+                    <path d="M200 95 L228 155 L294 106 L245 172 L305 200 L245 228 L294 294 L228 245 L200 305 L172 245 L106 294 L155 228 L95 200 L155 172 L106 106 L172 155 Z"/>
+                  </g>
+                  <g stroke="#b2a282" stroke-width="1.7" opacity=".72">
+                    <circle cx="200" cy="84" r="12"/><circle cx="316" cy="200" r="12"/>
+                    <circle cx="200" cy="316" r="12"/><circle cx="84" cy="200" r="12"/>
+                    <circle cx="282" cy="118" r="10"/><circle cx="282" cy="282" r="10"/>
+                    <circle cx="118" cy="282" r="10"/><circle cx="118" cy="118" r="10"/>
+                  </g>
+                  <g stroke="#6f879a" stroke-width="1.5" opacity=".7">
+                    <path d="M200 128 C240 128 272 160 272 200 C272 240 240 272 200 272 C160 272 128 240 128 200 C128 160 160 128 200 128 Z"/>
+                    <path d="M200 138 L219 181 L266 181 L228 210 L242 254 L200 228 L158 254 L172 210 L134 181 L181 181 Z"/>
+                  </g>
+                  <circle cx="200" cy="200" r="24" stroke="#8f7e94" stroke-width="2"/>
+                  <circle cx="200" cy="200" r="5" fill="#8f7e94" stroke="none"/>
+                </g>
+              </svg>
+            </div>
+            <p class="front-hint">點一下牌面</p>
+          </article>
+
+          <article class="card-face card-back" aria-live="polite">
+            <div class="back-ornament" aria-hidden="true">✦</div>
+            <p id="prompt" class="prompt"></p>
+            <div class="back-ornament lower" aria-hidden="true">✦</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>來源參考自 <strong>Oblique Strategies</strong> by Brian Eno and artist Peter Schmidt.</p>
+    </footer>
+
+    <aside id="aboutPanel" class="about-panel" hidden>
+      <div class="about-inner">
+        <button id="closeAbout" class="close-btn" type="button" aria-label="關閉">×</button>
+        <h2>關於這個版本</h2>
+        <p>這是一個受斜向思考概念啟發的繁體中文創作靈感網站，共 44 張卡。牌面、曼陀羅、色彩、互動與文字皆為重新設計。</p>
+        <p>為避免直接重製受著作權保護的完整卡牌內容，這 44 則訊息為重新創作的中文提示，而非《Oblique Strategies》原版卡片的完整翻譯。</p>
+        <p>背景音樂由瀏覽器即時合成空靈環境音，不載入外部音樂檔。瀏覽器限制自動播放，因此第一次點牌或開啟音樂後才會開始。</p>
+        <p class="small">操作：點一下牌面看訊息；再點一下回到牌背；下一次翻牌會隨機出現另一則訊息。</p>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
